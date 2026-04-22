@@ -2,6 +2,7 @@
    Copyright (C) 2011 bg <bg_one@mail.ru>
 */
 #include "ast_config.h"
+#include "asterisk/logger.h" /* ast_log() */
 
 #include <dirent.h>    /* DIR */
 #include <stdio.h>     /* NULL */
