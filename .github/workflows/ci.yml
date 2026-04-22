@@ -1,19 +1,29 @@
-name: CI
+name: Backend CI
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Share cache between workflows
+env:
+  ASTERISK_VERSION: "20.11.0"
+  CACHE_KEY_PREFIX: "asterisk-20.11.0"
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - title: Asterisk 20
-            asterisk_version: "20.11.0"
-
+    name: Build and Test
     runs-on: ubuntu-latest
+
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-${{ hashFiles('.github/workflows/*.yml') }}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: |
@@ -26,40 +36,39 @@ jobs:
         id: cache-asterisk
         uses: actions/cache@v4
         with:
-          path: ~/asterisk-${{ matrix.asterisk_version }}-source
-          key: asterisk-${{ matrix.asterisk_version }}-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          path: ~/asterisk-${{ env.ASTERISK_VERSION }}-source
+          key: ${{ steps.cache-key.outputs.key }}
 
-      - name: Download Asterisk ${{ matrix.asterisk_version }}
+      - name: Download Asterisk ${{ env.ASTERISK_VERSION }}
         if: steps.cache-asterisk.outputs.cache-hit != 'true'
-        env:
-          ASTVER: ${{ matrix.asterisk_version }}
         run: |
           cd ~
-          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTVER}.tar.gz
-          tar xzf asterisk-${ASTVER}.tar.gz
-          mv asterisk-${ASTVER} asterisk-${ASTVER}-source
+          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          tar xzf asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          mv asterisk-${{ env.ASTERISK_VERSION }} asterisk-${{ env.ASTERISK_VERSION }}-source
 
       - name: Install Asterisk headers
-        env:
-          ASTVER: ${{ matrix.asterisk_version }}
         run: |
-          cd ~/asterisk-${ASTVER}-source
+          cd ~/asterisk-${{ env.ASTERISK_VERSION }}-source
           ./configure --disable-all --with-sqlite3 --disable-build-native \
             --without-pjproject --without-dahdi --without-libpri 2>&1 | tail -20
           make -j$(nproc) 2>&1 | tail -20
           sudo make install 2>&1 | tail -10
+          sudo make install-headers
           sudo make samples
 
       - name: Build chan_dongle
         run: |
+          ./autogen.sh || true
+          ./configure
           make clean
-          make 2>&1
+          make
 
       - name: Run unit tests
-        run: make test
+        run: make check
 
       - name: Check module
         run: |
-          ls -la chan_dongle.so
-          file chan_dongle.so
-          nm -D chan_dongle.so | grep -E "load_module|unload_module" || true
+          ls -la .libs/chan_dongle.so
+          file .libs/chan_dongle.so
+          nm -D .libs/chan_dongle.so | grep -E "load_module|unload_module" || true

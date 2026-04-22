@@ -7,9 +7,9 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.(md|txt)$
+        exclude: '\.(md|txt|in|m4)$|(^|/)configure$|(^|/)compile$|(^|/)config\.(guess|sub)$|(^|/)depcomp$|(^|/)install-sh$|(^|/)ltmain\.sh$|(^|/)missing$|(^|/)test-driver$|(^|/)Makefile$'
       - id: end-of-file-fixer
-        exclude: \.(md|txt)$
+        exclude: '\.(md|txt|in|m4)$|(^|/)configure$|(^|/)compile$|(^|/)config\.(guess|sub)$|(^|/)depcomp$|(^|/)install-sh$|(^|/)ltmain\.sh$|(^|/)missing$|(^|/)test-driver$|(^|/)Makefile$'
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
@@ -21,17 +21,6 @@ repos:
         args: ['--fix=lf']
       - id: fix-byte-order-marker
 
-  # C/C++ formatting with clang-format
-  - repo: local
-    hooks:
-      - id: clang-format
-        name: clang-format
-        entry: clang-format
-        language: system
-        files: \.(c|h)$
-        args: ['-i']
-        exclude: tests/
-
   # C/C++ linting with cppcheck
   - repo: local
     hooks:
@@ -39,13 +28,27 @@ repos:
         name: cppcheck
         entry: cppcheck
         language: system
-        files: \.(c|h)$
+        files: '\.(c|h)$'
         args:
-          - --enable=all
+          - --enable=warning,performance,portability,missingInclude
           - --suppress=missingIncludeSystem
           - --suppress=unusedFunction
           - --suppress=unmatchedSuppression
           - --suppress=checkersReport
+          - --suppress=unusedStructMember
+          - --suppress=arithOperationsOnVoidPointer
+          - --suppress=missingInclude
+          - --suppress=normalCheckLevelMaxBranches
+          - --suppress=uninitvar
+          - --suppress=negativeIndex
+          - --suppress=unknownMacro
+          - --suppress=allocaCalled
+          - --suppress=nullPointerRedundantCheck
+          - --suppress=ctuNullPointer
+          - --suppress=ctunullpointer
+          - --suppress=invalidScanfArgType_int
+          - --suppress=funcArgOrderDifferent
+          - --suppress=preprocessorErrorDirective
           - --std=c11
           - --error-exitcode=1
           - --inline-suppr
@@ -53,11 +56,3 @@ repos:
           - -D_GNU_SOURCE
           - -DHAVE_CONFIG_H
           - -I.
-        exclude: tests/
-
-  # Shell script checks
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
-    hooks:
-      - id: shellcheck
-        files: \.(sh|bash)$

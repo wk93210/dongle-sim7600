@@ -983,4 +983,3 @@ EXPORT_DEF void at_hangup_immediality(struct cpvt* cpvt)
 	if(length > 0)
 		at_write(cpvt->pvt, buf, length);
 }
-

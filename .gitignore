@@ -2,15 +2,41 @@
 *.o
 *.so
 *.a
+*.la
+*.lo
+.libs/
+.deps/
+
+# Autotools generated files
+Makefile
+Makefile.in
+aclocal.m4
+config.h.in
+configure
+configure~
+compile
+config.guess
+config.sub
+depcomp
+install-sh
+ltmain.sh
+missing
+test-driver
+
+# Build generated files
+config.h
+config.log
+config.status
+stamp-h1
+libtool
+*.tar.gz
+*.tar.bz2
+*.tar.xz
 
 # Backup files
 *.bak
 *.orig
 *~
-
-# Generated config
-config.h
-config.log
 
 # IDE
 .vscode/
@@ -29,3 +55,18 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Test binaries
+tests/test_at_parse
+tests/*.o
+
+# Core dumps
+core
+core.*
+vgcore.*
+# Additional build artifacts
+.dirstamp
+autom4te.cache/
+tests/test-suite.log
+tests/test_at_parse.log
+tests/test_at_parse.trs

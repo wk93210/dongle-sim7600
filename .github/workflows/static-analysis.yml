@@ -1,14 +1,30 @@
 name: Static Analysis
 
-on: [push, pull_request]
+on:
+  pull_request:
+  workflow_run:
+    workflows: ["Backend CI"]
+    types: [completed]
+    branches: [main]
+
+# Share cache between workflows
+env:
+  ASTERISK_VERSION: "20.11.0"
+  CACHE_KEY_PREFIX: "asterisk-20.11.0"
 
 jobs:
   valgrind-memcheck:
     name: Valgrind Memory Check
     runs-on: ubuntu-latest
+    # Skip if triggered by workflow_run and CI failed
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore cache key
+        id: cache-key
+        run: echo "key=${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-${{ hashFiles('.github/workflows/*.yml') }}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: |
@@ -21,47 +37,47 @@ jobs:
         id: cache-asterisk
         uses: actions/cache@v4
         with:
-          path: ~/asterisk-20.11.0-source
-          key: asterisk-static-20.11.0-${{ runner.os }}
+          path: ~/asterisk-${{ env.ASTERISK_VERSION }}-source
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            ${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-
 
-      - name: Download Asterisk 20.11.0
+      - name: Download Asterisk ${{ env.ASTERISK_VERSION }}
         if: steps.cache-asterisk.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-20.11.0.tar.gz
-          tar xzf asterisk-20.11.0.tar.gz
-          mv asterisk-20.11.0 asterisk-20.11.0-source
+          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          tar xzf asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          mv asterisk-${{ env.ASTERISK_VERSION }} asterisk-${{ env.ASTERISK_VERSION }}-source
 
       - name: Install Asterisk headers
         run: |
-          cd ~/asterisk-20.11.0-source
+          cd ~/asterisk-${{ env.ASTERISK_VERSION }}-source
           ./configure --disable-all --with-sqlite3 --disable-build-native \
             --without-pjproject --without-dahdi --without-libpri 2>&1 | tail -10
           make -j$(nproc) 2>&1 | tail -10
           sudo make install 2>&1 | tail -5
+          sudo make install-headers
 
       - name: Build with debug symbols
         run: |
+          ./autogen.sh || true
+          ./configure CFLAGS="-g -O0"
           make clean
-          CFLAGS="-fPIC -O0 -g3 -Wall -Wextra -std=gnu11 \
-            -DASTERISK_VERSION_NUM=200190 \
-            -DAST_MODULE_SELF_SYM=__internal_chan_dongle_self \
-            -DAST_MODULE=\"chan_dongle\" \
-            -D_GNU_SOURCE -DHAVE_CONFIG_H -I. \
-            -include $(pwd)/preinclude.h \
-            -idirafter /usr/include/asterisk" \
-          make 2>&1
+          make
 
       - name: Run valgrind on tests
         run: |
           make -C tests clean
-          make -C tests
+          make -C tests CFLAGS="-g -O0"
           valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all \
             ./tests/test_at_parse 2>&1 | tail -50
 
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # Skip if triggered by workflow_run and CI failed
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       actions: read
       contents: read
@@ -69,6 +85,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore cache key
+        id: cache-key
+        run: echo "key=${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-${{ hashFiles('.github/workflows/*.yml') }}" >> $GITHUB_OUTPUT
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -87,29 +107,34 @@ jobs:
         id: cache-asterisk
         uses: actions/cache@v4
         with:
-          path: ~/asterisk-20.11.0-source
-          key: asterisk-codeql-20.11.0-${{ runner.os }}
+          path: ~/asterisk-${{ env.ASTERISK_VERSION }}-source
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            ${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-
 
-      - name: Download Asterisk 20.11.0
+      - name: Download Asterisk ${{ env.ASTERISK_VERSION }}
         if: steps.cache-asterisk.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-20.11.0.tar.gz
-          tar xzf asterisk-20.11.0.tar.gz
-          mv asterisk-20.11.0 asterisk-20.11.0-source
+          wget -q https://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          tar xzf asterisk-${{ env.ASTERISK_VERSION }}.tar.gz
+          mv asterisk-${{ env.ASTERISK_VERSION }} asterisk-${{ env.ASTERISK_VERSION }}-source
 
       - name: Install Asterisk headers
         run: |
-          cd ~/asterisk-20.11.0-source
+          cd ~/asterisk-${{ env.ASTERISK_VERSION }}-source
           ./configure --disable-all --with-sqlite3 --disable-build-native \
             --without-pjproject --without-dahdi --without-libpri 2>&1 | tail -10
           make -j$(nproc) 2>&1 | tail -10
           sudo make install 2>&1 | tail -5
+          sudo make install-headers
 
       - name: Build for CodeQL
         run: |
+          ./autogen.sh || true
+          ./configure
           make clean
-          make 2>&1
+          make
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

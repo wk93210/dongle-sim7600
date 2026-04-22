@@ -506,7 +506,7 @@ static int smsdb_outgoing_clear_nolock(int uid)
 		res = -1;
 	}
 	sqlite3_reset(del_outgoingpart_stmt);
-	
+
 	return res;
 }
 EXPORT_DEF ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)

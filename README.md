@@ -41,7 +41,8 @@ A udev rule typically creates `/dev/ttyUSB-PCM` as a symlink to `/dev/ttyUSB5`.
 ```bash
 # Debian/Ubuntu/Raspberry Pi OS
 sudo apt-get update
-sudo apt-get install -y build-essential libsqlite3-dev asterisk-dev
+sudo apt-get install -y build-essential autoconf automake libtool
+sudo apt-get install -y libsqlite3-dev asterisk-dev
 
 # Verify Asterisk headers are installed
 ls /usr/include/asterisk/asterisk.h
@@ -49,11 +50,44 @@ ls /usr/include/asterisk/asterisk.h
 
 ### Building from Source
 
+The project uses GNU Autotools for cross-platform builds. Pre-generated `configure` is included for convenience.
+
 ```bash
-cd /path/to/chan_dongle-src
-make clean
+cd /path/to/dongle-sim7600
+
+# Configure (auto-detects Asterisk installation)
+./configure
+
+# Or specify custom Asterisk paths
+./configure --with-asterisk=/opt/asterisk
+./configure --with-asterisk-headers=/usr/local/include/asterisk
+./configure --with-asterisk-modules=/usr/local/lib/asterisk/modules
+
+# Build
 make
-sudo cp chan_dongle.so /usr/lib/asterisk/modules/
+
+# Install (to detected or specified Asterisk modules directory)
+sudo make install
+```
+
+#### Build Options
+
+| Option | Description |
+|--------|-------------|
+| `--with-asterisk=DIR` | Asterisk installation prefix |
+| `--with-asterisk-headers=DIR` | Asterisk headers directory |
+| `--with-asterisk-modules=DIR` | Asterisk modules directory |
+| `--disable-applications` | Disable dialplan applications |
+| `--disable-manager` | Disable AMI extensions |
+
+#### Regenerating Build System (Developers)
+
+If you modify `configure.ac` or `Makefile.am`:
+
+```bash
+./autogen.sh    # Regenerates configure script
+./configure
+make
 ```
 
 ### Configuration
@@ -313,9 +347,17 @@ Dialplan/App <-> at_queue.c <-> at_command.c <-> /dev/ttyUSB0
 ### Building for Development
 
 ```bash
+# Clean previous builds
 make clean
+
+# Configure with debug symbols
+./configure CFLAGS="-g -O0"
+
+# Build
 make
-sudo cp chan_dongle.so /usr/lib/asterisk/modules/
+
+# Install and reload
+sudo make install
 sudo asterisk -rx "module reload chan_dongle"
 ```
 
@@ -353,7 +395,7 @@ Configured hooks:
 ### Code Structure
 
 ```
-chan_dongle-src/
+dongle-sim7600/
 ├── app.c/h           - Dialplan applications
 ├── at_command.c/h    - AT command generation
 ├── at_parse.c/h      - AT response parsing
@@ -364,6 +406,9 @@ chan_dongle-src/
 ├── channel.c/h       - Asterisk channel interface
 ├── char_conv.c/h     - Character encoding
 ├── cli.c/h           - CLI commands
+├── configure.ac      - Autoconf configuration
+├── Makefile.am       - Automake configuration
+├── autogen.sh        - Build system generator
 ├── cpvt.c/h          - Call private data
 ├── dc_config.c/h     - Device configuration
 ├── etc/              - Sample configuration files
@@ -398,7 +443,7 @@ For issues, questions, or contributions, please use the GitHub issue tracker.
   - Fixed PCM write errors with retry logic and usleep delays
   - Added SIM7600-specific "VOICE CALL: BEGIN/END" handling
   - SIMCOM auto-detection via AT+CGMI
-  - Cleaned up build system (removed autotools, using modern Makefile)
+  - Added autotools build system for cross-platform compilation
   - Removed dead code: contrib/, test/, tools/, BUGS, TODO.txt
   - Updated documentation with sample config files
   - Fixed build for modern glibc/GCC compatibility
