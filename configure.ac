@@ -282,6 +282,7 @@ AC_DEFINE([MODULE_BUGREPORT], ["https://github.com/wk93210/sip/issues"], [Bug re
 # Output files
 AC_CONFIG_FILES([
   Makefile
+  tests/Makefile
 ])
 
 AC_OUTPUT
