@@ -495,11 +495,7 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return CLI_SUCCESS;
 }
 
-#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
-#else /* 1.8- */
-typedef char * const * ast_cli_complete2_t;
-#endif /* ^1.8- */
 
 static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {

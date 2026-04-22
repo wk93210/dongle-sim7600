@@ -197,11 +197,7 @@ static const struct dongle_application
 	}
 };
 
-#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef int (*app_func_t)(struct ast_channel *channel, const char *data);
-#else /* 1.8- */
-typedef int (*app_func_t)(struct ast_channel *channel, void *data);
-#endif /* ^1.8- */
 
 #/* */
 EXPORT_DEF void app_register()

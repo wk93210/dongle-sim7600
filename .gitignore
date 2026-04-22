@@ -2,70 +2,26 @@
 *.o
 *.so
 *.a
-*.la
-*.lo
-
-# Executables
-*.exe
-*.out
-*.app
 
 # Backup files
 *.bak
 *.orig
 *~
 
-# Test files
-ENDTEST
-EOF
-MAKEEOF
-PYEOF
-PATCH
-
-# Autotools
-configure
-Makefile
-Makefile.in~
-autom4te.cache/
-config.cache
+# Generated config
 config.h
-config.h.in~
 config.log
-config.status
-.deps/
-.libs/
-*.d
-aclocal.m4
-compile
-config.guess
-config.sub
-depcomp
-install-sh
-libtool
-ltmain.sh
-missing
-stamp-h1
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg
 *.egg-info/
-dist/
-build/
-.Python
-venv/
-ENV/
-env/
-.env
 
 # OS files
 .DS_Store

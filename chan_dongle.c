@@ -34,10 +34,6 @@
  */
 #include "ast_config.h"
 
-#if ASTERISK_VERSION_NUM < 140000 /* 14- */
-ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
-#endif /* 14- */
-
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
@@ -53,10 +49,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
 #include "ast_compat.h"			/* asterisk compatibility fixes */
 
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 #include <asterisk/stasis_channels.h>
 #include <asterisk/format_cache.h>
-#endif /* ^13+ */
 
 #include "chan_dongle.h"
 #include "at_response.h"		/* at_res_t */
@@ -75,10 +69,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
-#if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
-EXPORT_DEF struct ast_format chan_dongle_format;
-EXPORT_DEF struct ast_format_cap * chan_dongle_format_cap;
-#endif /* ^10-13 */
 
 static int public_state_init(struct public_state * state);
 
@@ -1743,25 +1733,10 @@ static int public_state_init(struct public_state * state)
 		{
 
 			/* set preferred capabilities */
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 			if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 				return AST_MODULE_LOAD_FAILURE;
 			}
 			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-			ast_format_set(&chan_dongle_format, AST_FORMAT_SLINEAR, 0);
-# if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
-			if (!(channel_tech.capabilities = ast_format_cap_alloc(0))) {
-				return AST_MODULE_LOAD_FAILURE;
-			}
-# else
-			if (!(channel_tech.capabilities = ast_format_cap_alloc())) {
-				return AST_MODULE_LOAD_FAILURE;
-			}
-# endif
-			ast_format_cap_add(channel_tech.capabilities, &chan_dongle_format);
-			chan_dongle_format_cap = channel_tech.capabilities;
-#endif /* ^10-13 */
 
 			/* register our channel type */
 			if(ast_channel_register(&channel_tech) == 0)
@@ -1778,12 +1753,8 @@ static int public_state_init(struct public_state * state)
 			}
 			else
 			{
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 				ao2_cleanup(channel_tech.capabilities);
 				channel_tech.capabilities = NULL;
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-				channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
-#endif /* ^10-13 */
 				ast_log (LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
 			}
 			discovery_stop(state);
@@ -1810,12 +1781,8 @@ static void public_state_fini(struct public_state * state)
 {
 	/* First, take us out of the channel loop */
 	ast_channel_unregister (&channel_tech);
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	ao2_cleanup(channel_tech.capabilities);
 	channel_tech.capabilities = NULL;
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-	channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
-#endif /* ^10-13 */
 
 	/* Unregister the CLI & APP & MANAGER */
 
@@ -1862,15 +1829,11 @@ static int reload_module()
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 		.support_level = AST_MODULE_SUPPORT_EXTENDED,
-#endif /* ^13+ */
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload_module,
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-#endif /* ^13+ */
 	       );
 
 //AST_MODULE_INFO_STANDARD (ASTERISK_GPL_KEY, MODULE_DESCRIPTION);
