@@ -283,7 +283,7 @@ static void log_cmd_response_error(const struct pvt* pvt, const at_queue_cmd_t *
 	}
 
 	va_start(ap, fmt);
-	vsnprintf(tempbuff, 512, fmt, ap);	
+	vsnprintf(tempbuff, 512, fmt, ap);
 	ast_log(LOG_ERROR, "%s", tempbuff);
 	va_end(ap);
 }

@@ -114,7 +114,7 @@ EXPORT_DEF int send_ussd(const char *dev_name, const char *ussd)
 		chan_dongle_err = E_INVALID_USSD;
 		return -1;
 	}
-	
+
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
@@ -139,7 +139,7 @@ EXPORT_DEF int send_sms(const char *dev_name, const char *number, const char *me
 	}
 
 	int srr = !report ? 0 : ast_true(report);
-	
+
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
