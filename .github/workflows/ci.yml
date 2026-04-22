@@ -58,6 +58,9 @@ jobs:
           make clean
           make ASTERISK_VERSION_NUM=200190 2>&1
 
+      - name: Run unit tests
+        run: make test
+
       - name: Check module
         run: |
           ls -la chan_dongle.so

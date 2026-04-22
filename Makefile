@@ -24,9 +24,12 @@ OBJS = $(SRCS:.c=.o)
 
 TARGET = chan_dongle.so
 
-.PHONY: all clean install
+.PHONY: all clean install test
 
 all: $(TARGET)
+
+test:
+	$(MAKE) -C tests test
 
 $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
