@@ -57,6 +57,16 @@ jobs:
           sudo make install-headers
           sudo make samples
 
+      - name: Debug - Find Asterisk headers
+        run: |
+          echo "=== Searching for Asterisk headers ==="
+          find /usr -name "asterisk.h" 2>/dev/null || true
+          find /usr/local -name "asterisk.h" 2>/dev/null || true
+          ls -la /usr/include/asterisk/ 2>/dev/null || true
+          ls -la /usr/local/include/asterisk/ 2>/dev/null || true
+          echo "=== pkg-config ==="
+          pkg-config --cflags asterisk 2>/dev/null || echo "asterisk not in pkg-config"
+
       - name: Build chan_dongle
         run: |
           ./autogen.sh || true
