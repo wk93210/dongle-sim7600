@@ -57,11 +57,17 @@ jobs:
             --without-pjproject --without-dahdi --without-libpri 2>&1 | tail -10
           make -j$(nproc) 2>&1 | tail -10
           sudo make install 2>&1 | tail -5
+          # Debug: Find where Asterisk headers are installed
+          echo "=== Looking for Asterisk headers ==="
+          find /usr -name "asterisk.h" 2>/dev/null || true
+          find /usr -name "frame.h" -path "*/asterisk/*" 2>/dev/null || true
+          ls -la /usr/include/asterisk/ 2>/dev/null || true
 
       - name: Build with debug symbols
         run: |
           ./autogen.sh || true
-          ./configure --with-asterisk-headers=/usr/include/asterisk CFLAGS="-g -O0"
+          ./configure --with-asterisk-headers=/usr/include/asterisk CFLAGS="-g -O0" || \
+            ./configure --with-asterisk-headers=$HOME/asterisk-${{ env.ASTERISK_VERSION }}-source/include CFLAGS="-g -O0"
           make clean
           make
 
@@ -130,7 +136,8 @@ jobs:
       - name: Build for CodeQL
         run: |
           ./autogen.sh || true
-          ./configure --with-asterisk-headers=/usr/include/asterisk
+          ./configure --with-asterisk-headers=/usr/include/asterisk || \
+            ./configure --with-asterisk-headers=$HOME/asterisk-${{ env.ASTERISK_VERSION }}-source/include
           make clean
           make
 
