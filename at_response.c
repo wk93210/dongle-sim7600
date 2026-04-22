@@ -1684,6 +1684,7 @@ static int at_response_cgmi (struct pvt* pvt, const char* str)
 		ast_log(LOG_NOTICE, "[%s] SIMCOM/SimTech detected, enabling voice support\n", PVT_ID(pvt));
 		pvt->has_voice = 1;
 		pvt->has_voice_quectel = 0;
+		pvt->has_voice_simcom = 1;
 	}
 
 	return 0;

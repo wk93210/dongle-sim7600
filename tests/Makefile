@@ -114,7 +114,7 @@ test_at_parse_LDADD = $(LDADD)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
-am__v_lt_1 =
+am__v_lt_1 = 
 test_at_parse_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_at_parse_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -125,11 +125,11 @@ am__v_P_1 = :
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 =
+am__v_GEN_1 = 
 AM_V_at = $(am__v_at_$(V))
 am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
 am__v_at_0 = @
-am__v_at_1 =
+am__v_at_1 = 
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
@@ -144,7 +144,7 @@ LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CC = $(am__v_CC_$(V))
 am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
 am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 =
+am__v_CC_1 = 
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -152,7 +152,7 @@ LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CCLD = $(am__v_CCLD_$(V))
 am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
 am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 =
+am__v_CCLD_1 = 
 SOURCES = $(test_at_parse_SOURCES)
 DIST_SOURCES = $(test_at_parse_SOURCES)
 am__can_run_installinfo = \
@@ -401,66 +401,66 @@ AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
-CPPFLAGS =
+CPPFLAGS = 
 CSCOPE = cscope
 CTAGS = ctags
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
 DLLTOOL = false
-DSYMUTIL =
-DUMPBIN =
-ECHO_C =
+DSYMUTIL = 
+DUMPBIN = 
+ECHO_C = 
 ECHO_N = -n
-ECHO_T =
+ECHO_T = 
 EGREP = /usr/bin/grep -E
 ETAGS = etags
-EXEEXT =
+EXEEXT = 
 FGREP = /usr/bin/grep -F
 FILECMD = file
 GREP = /usr/bin/grep
-ICONV_CFLAGS =
-ICONV_LIBS =
+ICONV_CFLAGS = 
+ICONV_LIBS = 
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = /usr/bin/ld
-LDFLAGS =
-LIBOBJS =
-LIBS =
+LDFLAGS = 
+LIBOBJS = 
+LIBS = 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
-LIPO =
+LIPO = 
 LN_S = ln -s
-LTLIBOBJS =
-LT_SYS_LIBRARY_PATH =
+LTLIBOBJS = 
+LT_SYS_LIBRARY_PATH = 
 MAKEINFO = ${SHELL} '/home/lunanli/sip/dongle-sim7600/missing' makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /usr/bin/mkdir -p
 NM = /usr/bin/nm -B
-NMEDIT =
+NMEDIT = 
 OBJDUMP = objdump
 OBJEXT = o
-OTOOL =
-OTOOL64 =
+OTOOL = 
+OTOOL64 = 
 PACKAGE = chan_dongle
 PACKAGE_BUGREPORT = https://github.com/wk93210/sip/issues
 PACKAGE_NAME = chan_dongle
 PACKAGE_STRING = chan_dongle 1.1
 PACKAGE_TARNAME = chan_dongle
-PACKAGE_URL =
+PACKAGE_URL = 
 PACKAGE_VERSION = 1.1
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
-PKG_CONFIG_LIBDIR =
-PKG_CONFIG_PATH =
+PKG_CONFIG_LIBDIR = 
+PKG_CONFIG_PATH = 
 RANLIB = ranlib
 SED = /usr/bin/sed
-SET_MAKE =
+SET_MAKE = 
 SHELL = /bin/bash
-SQLITE3_CFLAGS =
-SQLITE3_LIBS = -lsqlite3
+SQLITE3_CFLAGS = 
+SQLITE3_LIBS = -lsqlite3 
 STRIP = strip
 VERSION = 1.1
 abs_builddir = /home/lunanli/sip/dongle-sim7600/tests
@@ -469,17 +469,17 @@ abs_top_builddir = /home/lunanli/sip/dongle-sim7600
 abs_top_srcdir = /home/lunanli/sip/dongle-sim7600
 ac_ct_AR = ar
 ac_ct_CC = gcc
-ac_ct_DUMPBIN =
+ac_ct_DUMPBIN = 
 am__include = include
 am__leading_dot = .
-am__quote =
-am__rm_f_notfound =
+am__quote = 
+am__rm_f_notfound = 
 am__tar = $${TAR-tar} chof - "$$tardir"
 am__untar = $${TAR-tar} xf -
 am__xargs_n = xargs -n
 bindir = ${exec_prefix}/bin
 build = aarch64-unknown-linux-gnu
-build_alias =
+build_alias = 
 build_cpu = aarch64
 build_os = linux-gnu
 build_vendor = unknown
@@ -490,7 +490,7 @@ docdir = ${datarootdir}/doc/${PACKAGE_TARNAME}
 dvidir = ${docdir}
 exec_prefix = ${prefix}
 host = aarch64-unknown-linux-gnu
-host_alias =
+host_alias = 
 host_cpu = aarch64
 host_os = linux-gnu
 host_vendor = unknown
@@ -514,7 +514,7 @@ sbindir = ${exec_prefix}/sbin
 sharedstatedir = ${prefix}/com
 srcdir = .
 sysconfdir = ${prefix}/etc
-target_alias =
+target_alias = 
 top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
@@ -566,7 +566,7 @@ clean-noinstPROGRAMS:
 	$(am__rm_f) $(noinst_PROGRAMS)
 	test -z "$(EXEEXT)" || $(am__rm_f) $(noinst_PROGRAMS:$(EXEEXT)=)
 
-test_at_parse$(EXEEXT): $(test_at_parse_OBJECTS) $(test_at_parse_DEPENDENCIES) $(EXTRA_test_at_parse_DEPENDENCIES)
+test_at_parse$(EXEEXT): $(test_at_parse_OBJECTS) $(test_at_parse_DEPENDENCIES) $(EXTRA_test_at_parse_DEPENDENCIES) 
 	@rm -f test_at_parse$(EXEEXT)
 	$(AM_V_CCLD)$(test_at_parse_LINK) $(test_at_parse_OBJECTS) $(test_at_parse_LDADD) $(LIBS)
 
@@ -826,7 +826,7 @@ echo "information.  Thanks.";                                                \
 	fi;								\
 	$$success || exit 1
 
-check-TESTS:
+check-TESTS: 
 	@$(am__rm_f) $(RECHECK_LOGS)
 	@$(am__rm_f) $(RECHECK_LOGS:.log=.trs)
 	@$(am__rm_f) $(TEST_SUITE_LOG)
@@ -835,7 +835,7 @@ check-TESTS:
 	log_list=`echo $$log_list`; \
 	$(MAKE) $(AM_MAKEFLAGS) $(TEST_SUITE_LOG) TEST_LOGS="$$log_list"; \
 	exit $$?;
-recheck: all
+recheck: all 
 	@$(am__rm_f) $(TEST_SUITE_LOG)
 	@set +e; $(am__set_TESTS_bases); \
 	bases=`for i in $$bases; do echo $$i; done \

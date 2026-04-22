@@ -537,10 +537,12 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 
 	if (pvt->has_voice_quectel) {
 		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_qpcmv10);
-	} else {
+		cmdsno++;
+	} else if (!pvt->has_voice_simcom) {
+		/* SIMCOM/SIM7600 doesn't need DDSETEX, skip for these devices */
 		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_ddsetex2);
+		cmdsno++;
 	}
-	cmdsno++;
 
 	if (at_queue_insert(cpvt, cmds, cmdsno, 1) != 0) {
 		chan_dongle_err = E_QUEUE;
@@ -566,6 +568,9 @@ EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
 	ATQ_CMD_INIT_DYN(cmds[0], CMD_AT_A);
 	if (pvt->has_voice_quectel) {
 		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_qpcmv10);
+	} else if (pvt->has_voice_simcom) {
+		/* SIMCOM/SIM7600 doesn't need DDSETEX */
+		count--;
 	} else {
 		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_ddsetex2);
 	}
