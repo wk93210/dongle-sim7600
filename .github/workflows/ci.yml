@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/asterisk-${{ matrix.asterisk_version }}-source
-          key: asterisk-${{ matrix.asterisk_version }}-${{ runner.os }}
+          key: asterisk-${{ matrix.asterisk_version }}-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Download Asterisk ${{ matrix.asterisk_version }}
         if: steps.cache-asterisk.outputs.cache-hit != 'true'
@@ -51,12 +51,9 @@ jobs:
           sudo make samples
 
       - name: Build chan_dongle
-        env:
-          ASTVER: ${{ matrix.asterisk_version }}
         run: |
-          export CFLAGS="-I/usr/include"
           make clean
-          make ASTERISK_VERSION_NUM=200190 2>&1
+          make 2>&1
 
       - name: Run unit tests
         run: make test

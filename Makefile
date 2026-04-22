@@ -11,7 +11,7 @@ CFLAGS = -fPIC -O2 -g -Wall -Wextra -Wno-unused-parameter -std=gnu11 \
     -D_GNU_SOURCE \
     -DHAVE_CONFIG_H \
     -I. \
-    -include /home/lunanli/sip/chan_dongle-src/preinclude.h \
+    -include $(PWD)/preinclude.h \
     -idirafter /usr/include/asterisk
 
 LDFLAGS = -shared -fPIC -lsqlite3 -lpthread
