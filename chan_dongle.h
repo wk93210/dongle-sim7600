@@ -138,11 +138,7 @@ typedef struct pvt {
 
   char a_write_buf[FRAME_SIZE * 5]; /*!< audio write buffer */
   struct mixbuffer a_write_mixb;    /*!< audio mix buffer */
-  //	struct ringbuffer	a_write_rb;			/*!< audio ring
-  //buffer */
 
-  //	char			a_read_buf[FRAME_SIZE + AST_FRIENDLY_OFFSET];
-  ///*!< audio read buffer */ 	struct ast_frame	a_read_frame;
   ///*!< read frame buffer */
 
   char dtmf_digit;                /*!< last DTMF digit */

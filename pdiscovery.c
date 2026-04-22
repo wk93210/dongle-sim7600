@@ -63,7 +63,6 @@ struct discovery_cache {
 
 static const struct pdiscovery_device device_ids[] = {
     {0x12d1, 0x1001, {2, 1, /* 0 */}}, /* E1550 and generic */
-    //	{ 0x12d1, 0x1465, { 2, 1, /* 0 */ } },		/* K3520 */
     {0x12d1, 0x140c, {3, 2, /* 0 */}}, /* E17xx */
     {0x12d1, 0x14ac, {4, 3, /* 0 */}}, /* E153Du-1 : thanks mghadam */
     {0x12d1, 0x1436, {4, 3, /* 0 */}}, /* E1750 */
@@ -303,7 +302,6 @@ static char *pdiscovery_port(const char *name, int len, const char *subdir) {
 
   if (stat(name2, &statb) == 0 && S_ISDIR(statb.st_mode) &&
       pdiscovery_is_port(name2, len2)) {
-    //		ast_debug(4, "[%s discovery] found port %s\n", devname,
     //dentry->d_name);
     BUILD_NAME("/dev", subdir, 4, len3, name3);
     port = ast_strdup(name3);
@@ -335,7 +333,6 @@ static char *pdiscovery_interface(const char *name, int len,
                                   unsigned *interface) {
   char *port = NULL;
   if (pdiscovery_get_id(name, len, "bInterfaceNumber", interface) == 1) {
-    //		ast_debug(4, "[%s discovery] bInterfaceNumber %02x\n", devname,
     //*interface);
     port = pdiscovery_port_name(name, len);
   }
@@ -387,7 +384,7 @@ static int pdiscovery_interfaces(const char *devname, const char *name, int len,
                           "[%s discovery] port %s for bInterfaceNumber %02x "
                           "already exists new is %s\n",
                           devname, ports->ports[idx], interface, port);
-                // FIXME
+                /* Port already exists, keep existing entry */
               }
             }
           }
@@ -643,24 +640,17 @@ static int pdiscovery_read_info(const struct pdiscovery_request *req,
 
   char *dlock;
   int fail = 1;
-
-  //	const char * cport = res->ports.ports[INTERFACE_TYPE_COM];
   const char *dport = res->ports.ports[INTERFACE_TYPE_DATA];
-
-  //	if(cport && strcmp(cport, dport) != 0) {
   int pid = lock_try(dport, &dlock);
+
   if (pid == 0) {
     fail = pdiscovery_get_info_cached(dport, req, res);
     closetty(-1, &dlock);
   } else {
     ast_debug(4, "[%s discovery] %s already used by process %d, skipped\n",
               req->name, dport, pid);
-    //			ast_log (LOG_WARNING, "[%s discovery] %s already used by
-    //process %d\n", devname, dport, pid);
   }
-  //	} else {
-  //		fail = pdiscovery_get_info_cached(dport, req, res);
-  //	}
+
   return fail;
 }
 
@@ -697,7 +687,6 @@ static int pdiscovery_check_device(const char *name, int len,
 
   device = pdiscovery_lookup_ids(req->name, name2, len2);
   if (device) {
-    //		ast_debug(4, "[%s discovery] should ports <-> interfaces map for
     //%04x:%04x modem=%02x voice=%02x data=%02x\n",
     ast_debug(4,
               "[%s discovery] should ports <-> interfaces map for %04x:%04x "
