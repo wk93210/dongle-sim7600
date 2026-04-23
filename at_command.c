@@ -570,32 +570,61 @@ EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
 	unsigned count = 2; /* AT_A + setup-voice */
 	const char * cmd1;
 
-	ATQ_CMD_INIT_DYN(cmds[0], CMD_AT_A);
-	if (pvt->has_voice_quectel) {
-		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_qpcmv10);
-	} else if (pvt->has_voice_simcom) {
-		/* SIMCOM/SIM7600 doesn't need DDSETEX */
-		count--;
+	if (pvt->has_voice_simcom && cpvt->state == CALL_STATE_INCOMING) {
+		/* For SIM7600 incoming calls:
+		 * 1) Disable PCM first to reset modem state
+		 * 2) Answer the call
+		 * 3) Re-enable PCM immediately after ATA returns OK.
+		 *    Sending AT+CPCMREG=1 here (before VOICE CALL: BEGIN) often
+		 *    succeeds, avoiding the retry storm and audio delay. */
+		at_queue_cmd_t cmds3[3];
+		ATQ_CMD_INIT_DYNI(cmds3[0], CMD_AT_CPCMREG);
+		if (at_fill_generic_cmd(&cmds3[0], "AT+CPCMREG=0\r") != 0) {
+			chan_dongle_err = E_UNKNOWN;
+			return -1;
+		}
+		ATQ_CMD_INIT_DYN(cmds3[1], CMD_AT_A);
+		if (at_fill_generic_cmd(&cmds3[1], "ATA\r") != 0) {
+			chan_dongle_err = E_UNKNOWN;
+			return -1;
+		}
+		ATQ_CMD_INIT_DYNI(cmds3[2], CMD_AT_CPCMREG);
+		if (at_fill_generic_cmd(&cmds3[2], "AT+CPCMREG=1\r") != 0) {
+			chan_dongle_err = E_UNKNOWN;
+			return -1;
+		}
+		if (at_queue_insert(cpvt, cmds3, 3, 1) != 0) {
+			chan_dongle_err = E_QUEUE;
+			return -1;
+		}
+		return 0;
 	} else {
-		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_ddsetex2);
-	}
+		ATQ_CMD_INIT_DYN(cmds[0], CMD_AT_A);
+		if (pvt->has_voice_quectel) {
+			ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_qpcmv10);
+		} else if (pvt->has_voice_simcom) {
+			count--;
+		} else {
+			ATQ_CMD_INIT_ST(cmds[1], CMD_AT_DDSETEX, cmd_ddsetex2);
+		}
 
-	if(cpvt->state == CALL_STATE_INCOMING)
-	{
+		if(cpvt->state == CALL_STATE_INCOMING)
+		{
 /* FIXME: channel number? */
-		cmd1 = "ATA\r";
-	}
-	else if(cpvt->state == CALL_STATE_WAITING)
-	{
-		cmds[0].cmd = CMD_AT_CHLD_2x;
-		cmd1 = "AT+CHLD=2%d\r";
+			cmd1 = "ATA\r";
+		}
+		else if(cpvt->state == CALL_STATE_WAITING)
+		{
+			cmds[0].cmd = CMD_AT_CHLD_2x;
+			cmd1 = "AT+CHLD=2%d\r";
 /* no need CMD_AT_DDSETEX in this case? */
-		count--;
-	}
-	else
-	{
-		ast_log (LOG_ERROR, "[%s] Request answer for call idx %d with state '%s'\n", PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
-		return -1;
+			count--;
+		}
+		else
+		{
+			ast_log (LOG_ERROR, "[%s] Request answer for call idx %d with state '%s'\n", PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
+			return -1;
+		}
 	}
 
 	if (at_fill_generic_cmd(&cmds[0], cmd1, cpvt->call_idx) != 0) {

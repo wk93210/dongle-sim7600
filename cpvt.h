@@ -60,6 +60,7 @@ typedef struct cpvt {
 
 	call_state_t		state;				/*!< see also call_state_t */
 	int			flags;				/*!< see also call_flag_t */
+	unsigned		pcmreg_retry;			/*!< retry counter for AT+CPCMREG=1 */
 
 /* TODO: join with flags */
 	unsigned int		dir:1;				/*!< call direction */

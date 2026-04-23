@@ -134,7 +134,14 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 			case CMD_AT_CPCMREG:
 				/* SIM7600 PCM audio enable/disable response */
-				ast_debug(1, "[%s] SIM7600 PCM audio command response received\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SIM7600 PCM audio command OK\n", PVT_ID(pvt));
+				/* command data is freed after write, so use cpvt state to infer
+				 * whether this was an enable (ACTIVE) or disable (RELEASED/ONHOLD) */
+				if (task->cpvt && task->cpvt->state == CALL_STATE_ACTIVE) {
+					CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_PCM_ENABLED);
+					task->cpvt->pcmreg_retry = 0;
+					ast_debug(1, "[%s] SIM7600 PCM audio enabled flag set\n", PVT_ID(pvt));
+				}
 				break;
 /*
 			case CMD_AT_CLIP:
@@ -204,6 +211,14 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CHLD_1x:
 				CPVT_RESET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
 				ast_debug (1, "[%s] Successful hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				/* For SIM7600 and other modems that may not send a call-end URC
+				 * (e.g., VOICE CALL: END) after a local AT+CHUP, free the cpvt
+				 * now if the Asterisk channel is already gone. */
+				if (task->cpvt->channel == NULL && task->cpvt->state != CALL_STATE_RELEASED) {
+					ast_debug(1, "[%s] Call idx %d channel already dead, releasing cpvt\n",
+						PVT_ID(pvt), task->cpvt->call_idx);
+					change_channel_state(task->cpvt, CALL_STATE_RELEASED, 0);
+				}
 				break;
 
 			case CMD_AT_CMGS:
@@ -384,7 +399,19 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 		case CMD_AT_CPCMREG:
 			/* SIM7600 PCM audio enable/disable error - not critical */
-			ast_debug(1, "[%s] SIM7600 PCM audio command failed (may already be in requested state)\n", PVT_ID(pvt));
+			ast_debug(1, "[%s] SIM7600 PCM audio command failed\n", PVT_ID(pvt));
+			/* command data is freed after write, so use cpvt state to infer
+			 * whether this was an enable (ACTIVE) or disable (RELEASED/ONHOLD) */
+			if (task->cpvt && task->cpvt->state == CALL_STATE_ACTIVE &&
+			    !CPVT_TEST_FLAG(task->cpvt, CALL_FLAG_PCM_ENABLED) &&
+			    task->cpvt->pcmreg_retry < 1) {
+				task->cpvt->pcmreg_retry++;
+				ast_log(LOG_NOTICE, "[%s] SIM7600 PCM audio enable failed, retry %u/1\n",
+					PVT_ID(pvt), task->cpvt->pcmreg_retry);
+				if (at_enqueue_pcmreg(task->cpvt, 1) != 0) {
+					ast_log(LOG_WARNING, "[%s] Failed to enqueue PCM enable retry\n", PVT_ID(pvt));
+				}
+			}
 			break;
 /*
 			case CMD_AT_CLIP:

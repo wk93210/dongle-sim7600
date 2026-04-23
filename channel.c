@@ -384,6 +384,8 @@ static int channel_answer (struct ast_channel* channel)
 
 	if (cpvt->dir == CALL_DIR_INCOMING)
 	{
+		/* at_enqueue_answer() sends AT+CPCMREG=0 before ATA for SIM7600
+		 * incoming calls to reset PCM state. */
 		if (at_enqueue_answer(cpvt))
 		{
 			ast_log (LOG_ERROR, "[%s] Error sending answer commands\n", PVT_ID(pvt));
@@ -1092,8 +1094,15 @@ EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int 
 						PVT_ID(pvt), pvt->has_voice_simcom,
 						CPVT_TEST_FLAG(cpvt, CALL_FLAG_PCM_ENABLED) ? 1 : 0, oldstate);
 					if (pvt->has_voice_simcom && !CPVT_TEST_FLAG(cpvt, CALL_FLAG_PCM_ENABLED)) {
+						/* For incoming calls, the SIM7600 may need a brief moment
+						 * after VOICE CALL: BEGIN before accepting AT+CPCMREG=1.
+						 * A short delay here avoids the rapid retry storm. */
+						if (cpvt->dir == CALL_DIR_INCOMING) {
+							usleep(200000);
+						}
 						at_enqueue_pcmreg(cpvt, 1);
-						CPVT_SET_FLAGS(cpvt, CALL_FLAG_PCM_ENABLED);
+						/* Don't set CALL_FLAG_PCM_ENABLED here; wait for OK response
+						 * so we can retry if the modem rejects it. */
 						ast_debug(1, "[%s] SIM7600: enabling PCM audio with AT+CPCMREG=1\n", PVT_ID(pvt));
 					}
 					activate_call(cpvt);
