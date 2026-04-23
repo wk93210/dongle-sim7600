@@ -65,6 +65,8 @@
 	_( AT_DDSETEX,      "AT^DDSETEX") \
 	/* same, but for Quectel EC25 */ \
 	_( AT_QPCMV,        "AT+QPCMV") \
+	/* SIM7600 USB audio enable */ \
+	_( AT_CPCMREG,      "AT+CPCMREG") \
 	_( AT_DTMF,         "AT^DTMF") \
 	_( AT_E,            "ATE") \
 \
@@ -116,6 +118,7 @@ EXPORT_DECL int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting);
 EXPORT_DECL int at_enqueue_reset(struct cpvt *cpvt);
 EXPORT_DECL int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir);
 EXPORT_DECL int at_enqueue_answer(struct cpvt *cpvt);
+EXPORT_DECL int at_enqueue_pcmreg(struct cpvt *cpvt, int enable);
 EXPORT_DECL int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
 EXPORT_DECL void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
 EXPORT_DECL int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);

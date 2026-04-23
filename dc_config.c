@@ -30,11 +30,13 @@ EXPORT_DEF const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf)
 static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_uconfig * config)
 {
 	const char * audio_tty;
+	const char * audio_tx_tty;
 	const char * data_tty;
 	const char * imei;
 	const char * imsi;
 
 	audio_tty = ast_variable_retrieve (cfg, cat, "audio");
+	audio_tx_tty = ast_variable_retrieve (cfg, cat, "audio_tx");
 	data_tty  = ast_variable_retrieve (cfg, cat, "data");
 	imei = ast_variable_retrieve (cfg, cat, "imei");
 	imsi = ast_variable_retrieve (cfg, cat, "imsi");
@@ -69,6 +71,7 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	ast_copy_string (config->id,		cat,	             sizeof (config->id));
 	ast_copy_string (config->data_tty,	S_OR(data_tty, ""),  sizeof (config->data_tty));
 	ast_copy_string (config->audio_tty,	S_OR(audio_tty, ""), sizeof (config->audio_tty));
+	ast_copy_string (config->audio_tx_tty,	S_OR(audio_tx_tty, ""), sizeof (config->audio_tx_tty));
 	ast_copy_string (config->imei,		S_OR(imei, ""),	     sizeof (config->imei));
 	ast_copy_string (config->imsi,		S_OR(imsi, ""),	     sizeof (config->imsi));
 

@@ -82,12 +82,17 @@ static int public_state_init(struct public_state *state);
 
 static int port_status(int fd) {
   struct termios t;
+  int ret;
 
   if (fd < 0) {
     return -1;
   }
 
-  return tcgetattr(fd, &t);
+  ret = tcgetattr(fd, &t);
+  if (ret < 0) {
+    ast_log(LOG_ERROR, "[dongle] port_status failed: errno=%d (%s)\n", errno, strerror(errno));
+  }
+  return ret;
 }
 
 #/* return length of lockname */
@@ -261,10 +266,12 @@ static void disconnect_dongle(struct pvt *pvt) {
   pvt->last_dialed_cpvt = NULL;
 
   closetty(pvt->audio_fd, &pvt->alock);
+  closetty(pvt->audio_tx_fd, &pvt->audio_tx_lock);
   closetty(pvt->data_fd, &pvt->dlock);
 
   pvt->data_fd = -1;
   pvt->audio_fd = -1;
+  pvt->audio_tx_fd = -1;
 
   if (pvt->dsp)
     ast_dsp_digitreset(pvt->dsp);
@@ -323,6 +330,8 @@ static void disconnect_dongle(struct pvt *pvt) {
                   sizeof(PVT_STATE(pvt, data_tty)));
   ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty),
                   sizeof(PVT_STATE(pvt, audio_tty)));
+  ast_copy_string(PVT_STATE(pvt, audio_tx_tty), CONF_UNIQ(pvt, audio_tx_tty),
+                  sizeof(PVT_STATE(pvt, audio_tx_tty)));
 
   ast_verb(3, "[%s] Dongle has disconnected\n", PVT_ID(pvt));
 
@@ -458,15 +467,25 @@ static void *do_monitor_phone(void *data) {
 
   ast_mutex_unlock(&pvt->lock);
 
+  int port_error_count = 0;
   while (1) {
     ast_mutex_lock(&pvt->lock);
 
     handle_expired_reports(pvt);
 
-    if (port_status(pvt->data_fd) || port_status(pvt->audio_fd)) {
-      ast_log(LOG_ERROR, "[%s] Lost connection to Dongle\n", dev);
+    if (port_status(pvt->data_fd) || port_status(pvt->audio_fd) ||
+        (pvt->audio_tx_fd >= 0 && port_status(pvt->audio_tx_fd))) {
+      /* SIM7600 resets USB ports after voice calls - retry before giving up */
+      port_error_count++;
+      if (port_error_count < 200) {  /* Retry for 20 seconds (100 * 100ms) */
+        ast_mutex_unlock(&pvt->lock);
+        usleep(100000);  /* 100ms */
+        continue;
+      }
+      ast_log(LOG_ERROR, "[%s] Lost connection to Dongle (port errors for 20 seconds)\n", dev);
       goto e_cleanup;
     }
+    port_error_count = 0;  /* Reset on success */
 
     if (pvt->terminate_monitor) {
       ast_log(LOG_NOTICE, "[%s] stopping by %s request\n", dev,
@@ -484,6 +503,15 @@ static void *do_monitor_phone(void *data) {
       ast_mutex_lock(&pvt->lock);
       ecmd = at_queue_head_cmd(pvt);
       if (ecmd) {
+        /* SIM7600 often ignores AT+CHUP while dialing; don't kill the device */
+        if (ecmd->cmd == CMD_AT_CHUP) {
+          ast_log(LOG_WARNING,
+                  "[%s] timedout while waiting '%s' in response to '%s', removing from queue\n", dev,
+                  at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
+          at_queue_handle_result(pvt, RES_UNKNOWN);
+          ast_mutex_unlock(&pvt->lock);
+          continue;
+        }
         ast_log(LOG_ERROR,
                 "[%s] timedout while waiting '%s' in response to '%s'\n", dev,
                 at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
@@ -592,6 +620,9 @@ static int pvt_discovery(struct pvt *pvt) {
                       sizeof(PVT_STATE(pvt, data_tty)));
       ast_copy_string(PVT_STATE(pvt, audio_tty), audio_tty,
                       sizeof(PVT_STATE(pvt, audio_tty)));
+      /* audio_tx_tty is not discovered; use config value */
+      ast_copy_string(PVT_STATE(pvt, audio_tx_tty), CONF_UNIQ(pvt, audio_tx_tty),
+                      sizeof(PVT_STATE(pvt, audio_tx_tty)));
 
       ast_free(audio_tty);
       ast_free(data_tty);
@@ -609,6 +640,8 @@ static int pvt_discovery(struct pvt *pvt) {
                     sizeof(PVT_STATE(pvt, data_tty)));
     ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty),
                     sizeof(PVT_STATE(pvt, audio_tty)));
+    ast_copy_string(PVT_STATE(pvt, audio_tx_tty), CONF_UNIQ(pvt, audio_tx_tty),
+                    sizeof(PVT_STATE(pvt, audio_tx_tty)));
     resolved = 1;
   }
   return !resolved;
@@ -646,8 +679,15 @@ static void pvt_start(struct pvt *pvt) {
     goto cleanup_datafd;
   }
 
+  if (PVT_STATE(pvt, audio_tx_tty)[0] != '\0') {
+    pvt->audio_tx_fd = opentty(PVT_STATE(pvt, audio_tx_tty), &pvt->audio_tx_lock);
+    if (pvt->audio_tx_fd < 0) {
+      goto cleanup_audiofd;
+    }
+  }
+
   if (!start_monitor(pvt)) {
-    goto cleanup_audiofd;
+    goto cleanup_audiotxfd;
   }
 
   /* Set data_fd and audio_fd to non-blocking. This appears to fix
@@ -659,6 +699,45 @@ static void pvt_start(struct pvt *pvt) {
   fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
   flags = fcntl(pvt->audio_fd, F_GETFL);
   fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
+  if (pvt->audio_tx_fd >= 0) {
+    flags = fcntl(pvt->audio_tx_fd, F_GETFL);
+    fcntl(pvt->audio_tx_fd, F_SETFL, flags | O_NONBLOCK);
+  }
+
+  /* SIM7600 audio port: disable hardware flow control. The user's
+   * Python test worked at 115200 baud; 460800 caused persistent EAGAIN
+   * on write. Some SIM7600 firmware ignores host baud rate for the
+   * USB-to-UART bridge and keeps the internal UART at 115200. */
+  {
+    struct termios audio_term;
+    speed_t actual_speed;
+    if (tcgetattr(pvt->audio_fd, &audio_term) == 0) {
+      audio_term.c_cflag &= ~CRTSCTS;
+      audio_term.c_cflag &= ~CBAUD;
+      audio_term.c_cflag |= B115200;
+      if (tcsetattr(pvt->audio_fd, TCSANOW, &audio_term) != 0) {
+        ast_log(LOG_WARNING, "[%s] tcsetattr() failed for audio port: %s\n",
+                PVT_ID(pvt), strerror(errno));
+      } else {
+        actual_speed = cfgetospeed(&audio_term);
+        ast_verb(3, "[%s] Audio port configured: %ld baud, no CRTSCTS\n",
+                 PVT_ID(pvt), (long)actual_speed);
+      }
+    }
+    if (pvt->audio_tx_fd >= 0 && tcgetattr(pvt->audio_tx_fd, &audio_term) == 0) {
+      audio_term.c_cflag &= ~CRTSCTS;
+      audio_term.c_cflag &= ~CBAUD;
+      audio_term.c_cflag |= B115200;
+      if (tcsetattr(pvt->audio_tx_fd, TCSANOW, &audio_term) != 0) {
+        ast_log(LOG_WARNING, "[%s] tcsetattr() failed for audio TX port: %s\n",
+                PVT_ID(pvt), strerror(errno));
+      } else {
+        actual_speed = cfgetospeed(&audio_term);
+        ast_verb(3, "[%s] Audio TX port configured: %ld baud, no CRTSCTS\n",
+                 PVT_ID(pvt), (long)actual_speed);
+      }
+    }
+  }
 
   pvt->connected = 1;
   pvt->current_state = DEV_STATE_STARTED;
@@ -666,6 +745,8 @@ static void pvt_start(struct pvt *pvt) {
   ast_verb(3, "[%s] Dongle has connected, initializing...\n", PVT_ID(pvt));
   return;
 
+cleanup_audiotxfd:
+  closetty(pvt->audio_tx_fd, &pvt->audio_tx_lock);
 cleanup_audiofd:
   closetty(pvt->audio_fd, &pvt->alock);
 cleanup_datafd:
@@ -1357,6 +1438,7 @@ static struct pvt *pvt_create(const pvt_config_t *settings) {
 
     pvt->monitor_thread = AST_PTHREADT_NULL;
     pvt->audio_fd = -1;
+    pvt->audio_tx_fd = -1;
     pvt->data_fd = -1;
     pvt->timeout = DATA_READ_TIMEOUT;
     pvt->gsm_reg_status = -1;
@@ -1419,6 +1501,7 @@ static int pvt_reconfigure(struct pvt *pvt, const pvt_config_t *settings,
 
     /* check what config changes require restaring */
     else if (strcmp(UCONFIG(settings, audio_tty), CONF_UNIQ(pvt, audio_tty)) ||
+             strcmp(UCONFIG(settings, audio_tx_tty), CONF_UNIQ(pvt, audio_tx_tty)) ||
              strcmp(UCONFIG(settings, data_tty), CONF_UNIQ(pvt, data_tty)) ||
              strcmp(UCONFIG(settings, imei), CONF_UNIQ(pvt, imei)) ||
              strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi)) ||

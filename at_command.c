@@ -138,8 +138,8 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 		/* check is password authentication requirement and the
 		 * remainder validation times */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, "AT+CPIN?\r"),
-		/* Read operator name */
-		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, "AT+COPS=0,0\r"),
+		/* Read operator name - use longer timeout for SIMCOM devices that may take time to search networks */
+		ATQ_CMD_DECLARE_STIT(CMD_AT_COPS_INIT, "AT+COPS=0,0\r", ATQ_CMD_TIMEOUT_LONG, 0),
 
 		/* GSM registration status setting */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT, "AT+CREG=2\r"),
@@ -538,8 +538,13 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 	if (pvt->has_voice_quectel) {
 		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_qpcmv10);
 		cmdsno++;
-	} else if (!pvt->has_voice_simcom) {
-		/* SIMCOM/SIM7600 doesn't need DDSETEX, skip for these devices */
+	} else if (pvt->has_voice_simcom) {
+		/* SIM7600: PCM audio is enabled on VOICE CALL: BEGIN or in
+		 * activate_call() when the call state becomes ACTIVE.
+		 * Sending AT+CPCMREG=1 before ATD violates the spec and
+		 * causes the module to return ERROR on rapid redial. */
+		ast_debug(3, "[%s] SIM7600: skipping AT+CPCMREG=1 before dial\n", PVT_ID(pvt));
+	} else {
 		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_ddsetex2);
 		cmdsno++;
 	}
@@ -598,6 +603,34 @@ EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
 		return -1;
 	}
 	if (at_queue_insert(cpvt, cmds, count, 1) != 0) {
+		chan_dongle_err = E_QUEUE;
+		return -1;
+	}
+	return 0;
+}
+
+/*!
+ * \brief Enqueue AT+CPCMREG command for SIM7600 USB audio
+ * \param cpvt -- cpvt structure
+ * \param enable -- 1 to enable PCM, 0 to disable
+ * \return 0 on success
+ */
+EXPORT_DEF int at_enqueue_pcmreg(struct cpvt *cpvt, int enable)
+{
+	pvt_t* pvt = cpvt->pvt;
+	at_queue_cmd_t cmd;
+
+	/* Only for SIMCOM/SIM7600 devices */
+	if (!pvt->has_voice_simcom) {
+		return 0;
+	}
+
+	ATQ_CMD_INIT_DYN(cmd, CMD_AT_CPCMREG);
+	if (at_fill_generic_cmd(&cmd, "AT+CPCMREG=%d\r", enable ? 1 : 0) != 0) {
+		chan_dongle_err = E_UNKNOWN;
+		return -1;
+	}
+	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
 		chan_dongle_err = E_QUEUE;
 		return -1;
 	}
