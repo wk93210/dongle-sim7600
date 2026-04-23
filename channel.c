@@ -1187,7 +1187,7 @@ EXPORT_DEF struct ast_channel* new_channel(
 	if (cpvt)
 	{
 		channel = ast_channel_alloc(
-				1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid,
+				1, ast_state, cid_num, cid_num, NULL, dnid,
 				CONF_SHARED(pvt, context), assignedids, requestor, 0,
 				"%s/%s-%02u%08lx", channel_tech.type, PVT_ID(pvt),
 				call_idx, pvt->channel_instance);
