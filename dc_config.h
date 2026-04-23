@@ -112,6 +112,7 @@ typedef struct dc_uconfig
 	/* unique settings */
 	char			id[DEVNAMELEN];			/*!< id from dongle.conf */
 	char			audio_tty[DEVPATHLEN];		/*!< tty for audio connection */
+	char			audio_tx_tty[DEVPATHLEN];	/*!< tty for audio TX (SIM7600 split audio) */
 	char			data_tty[DEVPATHLEN];		/*!< tty for AT commands */
 	char			imei[IMEI_SIZE+1];		/*!< search device by imei */
 	char			imsi[IMSI_SIZE+1];		/*!< search device by imsi */

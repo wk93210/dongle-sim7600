@@ -43,6 +43,7 @@ typedef enum {
 	CALL_FLAG_BRIDGE_LOOP	= 64,				/*!< internal, found channel bridged to channel on same device */
 	CALL_FLAG_BRIDGE_CHECK	= 128,				/*!< internal, we already do check for bridge loop */
 	CALL_FLAG_MULTIPARTY	= 256,				/*!< internal, CLCC mpty is 1 */
+	CALL_FLAG_PCM_ENABLED	= 512,				/*!< internal, AT+CPCMREG=1 sent for SIM7600 */
 } call_flag_t;
 
 

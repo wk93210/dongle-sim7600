@@ -46,8 +46,9 @@ typedef enum {
 
 /* state */
 typedef struct pvt_state {
-  char audio_tty[DEVPATHLEN]; /*!< tty for audio connection */
-  char data_tty[DEVPATHLEN];  /*!< tty for AT commands */
+  char audio_tty[DEVPATHLEN];    /*!< tty for audio RX connection */
+  char audio_tx_tty[DEVPATHLEN]; /*!< tty for audio TX connection (SIM7600) */
+  char data_tty[DEVPATHLEN];     /*!< tty for AT commands */
   uint32_t at_tasks;          /*!< number of active tasks in at_queue */
   uint32_t at_cmds;           /*!< number of active commands in at_queue */
   uint32_t chansno;           /*!< number of channels in channels list */
@@ -125,10 +126,12 @@ typedef struct pvt {
 
   pthread_t monitor_thread; /*!< monitor (at commands reader) thread handle */
 
-  int audio_fd; /*!< audio descriptor */
-  int data_fd;  /*!< data descriptor */
-  char *alock;  /*!< name of lockfile for audio */
-  char *dlock;  /*!< name of lockfile for data */
+  int audio_fd;    /*!< audio RX descriptor */
+  int audio_tx_fd; /*!< audio TX descriptor (SIM7600 split audio) */
+  int data_fd;     /*!< data descriptor */
+  char *alock;     /*!< name of lockfile for audio */
+  char *audio_tx_lock; /*!< name of lockfile for audio TX */
+  char *dlock;     /*!< name of lockfile for data */
 
   struct ast_dsp *dsp; /*!< silence/DTMF detector - FIXME: must be in cpvt */
   dc_dtmf_setting_t real_dtmf; /*!< real DTMF setting */

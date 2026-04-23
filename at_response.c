@@ -132,6 +132,10 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				pvt->has_voice = 1;
 				pvt->has_voice_quectel = 1;
 				break;
+			case CMD_AT_CPCMREG:
+				/* SIM7600 PCM audio enable/disable response */
+				ast_debug(1, "[%s] SIM7600 PCM audio command response received\n", PVT_ID(pvt));
+				break;
 /*
 			case CMD_AT_CLIP:
 				ast_debug (1, "[%s] Calling line indication disabled\n", PVT_ID(pvt));
@@ -378,6 +382,10 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					ast_log(LOG_WARNING, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
 				}
 				break;
+		case CMD_AT_CPCMREG:
+			/* SIM7600 PCM audio enable/disable error - not critical */
+			ast_debug(1, "[%s] SIM7600 PCM audio command failed (may already be in requested state)\n", PVT_ID(pvt));
+			break;
 /*
 			case CMD_AT_CLIP:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error enabling calling line indication\n", PVT_ID(pvt));
@@ -1758,7 +1766,7 @@ static int at_response_cimi (struct pvt* pvt, const char* str)
 static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type control)
 {
 	const struct at_queue_task * task = at_queue_head_task (pvt);
-	struct cpvt* cpvt = task->cpvt;
+	struct cpvt* cpvt = task ? task->cpvt : NULL;
 
 	if(cpvt == &pvt->sys_chan)
 		cpvt = pvt->last_dialed_cpvt;
@@ -1767,6 +1775,13 @@ static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type contro
 	{
 		CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 		queue_control_channel (cpvt, control);
+
+		/* Release the cpvt if the channel has already hung up or if
+		 * this is NO_CARRIER/NO_DIALTONE (the call is dead). */
+		if (cpvt->state != CALL_STATE_RELEASED)
+		{
+			change_channel_state(cpvt, CALL_STATE_RELEASED, 0);
+		}
 	}
 }
 
@@ -1863,6 +1878,50 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			case RES_ORIG:
 				return at_response_orig (pvt, str);
 
+			case RES_VOICE_CALL_B:
+				/* SIM7600 voice call began - transition call to ACTIVE.
+				 * For normal modules, ^CONN: triggers this state change.
+				 * SIM7600 sends VOICE CALL: BEGIN instead, so we must
+				 * transition here or the SIP side keeps ringing forever.
+				 * AT+CPCMREG=1 is handled by activate_call() inside
+				 * change_channel_state(), so we don't send it again here. */
+				ast_debug(1, "[%s] SIM7600 voice call begin\n", PVT_ID(pvt));
+				if (pvt->has_voice_simcom) {
+					struct cpvt *cpvt;
+					AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+						if (cpvt->channel && cpvt->state != CALL_STATE_ACTIVE && cpvt->state != CALL_STATE_RELEASED) {
+							change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
+							ast_debug(1, "[%s] SIM7600: call idx %d changed to ACTIVE due to VOICE CALL BEGIN\n", PVT_ID(pvt), cpvt->call_idx);
+							break;
+						}
+					}
+				}
+				return 0;
+
+			case RES_VOICE_CALL_E:
+				/* SIM7600 voice call ended - release all calls.
+				 * AT+CPCMREG=0 is handled by disactivate_call() in
+				 * change_channel_state(), so we don't send it again here.
+				 * Sending it twice caused the module to error on rapid redial.
+				 *
+				 * NOTE: We must NOT continue iterating after change_channel_state()
+				 * because it calls cpvt_free(), which removes the element from the
+				 * list and frees it. Continuing AST_LIST_TRAVERSE would read
+				 * cpvt->entry.next from freed memory (use-after-free / segfault). */
+				ast_debug(1, "[%s] SIM7600 voice call end\n", PVT_ID(pvt));
+				if (pvt->has_voice_simcom) {
+					struct cpvt *cpvt;
+					AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+						/* Release the first active call */
+						if (cpvt->state != CALL_STATE_RELEASED && cpvt->state != CALL_STATE_INIT) {
+							CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+							change_channel_state(cpvt, CALL_STATE_RELEASED, 0);
+							ast_debug(1, "[%s] SIM7600: call idx %d released due to VOICE CALL END\n", PVT_ID(pvt), cpvt->call_idx);
+							break; /* cpvt was freed; do not touch iterator */
+						}
+					}
+				}
+				return 0;
 			case RES_CEND:
 				return at_response_cend (pvt, str);
 

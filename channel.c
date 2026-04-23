@@ -232,14 +232,21 @@ static int channel_call(struct ast_channel* channel, const char *dest, attribute
 #/* ARCH: move to cpvt level */
 static void disactivate_call(struct cpvt* cpvt)
 {
+	struct pvt* pvt = cpvt->pvt;
 	if(cpvt->channel && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED))
 	{
-		mixb_detach(&cpvt->pvt->a_write_mixb, &cpvt->mixstream);
+		mixb_detach(&pvt->a_write_mixb, &cpvt->mixstream);
 		ast_channel_set_fd (cpvt->channel, 1, -1);
 		ast_channel_set_fd (cpvt->channel, 0, -1);
 		CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
 
-		ast_debug (6, "[%s] call idx %d disactivated\n", PVT_ID(cpvt->pvt), cpvt->call_idx);
+		/* Send AT+CPCMREG=0 to properly reset audio state for next call */
+		if (pvt->has_voice_simcom) {
+			at_enqueue_pcmreg(cpvt, 0);
+			CPVT_RESET_FLAGS(cpvt, CALL_FLAG_PCM_ENABLED);
+		}
+
+		ast_debug (6, "[%s] call idx %d disactivated\n", PVT_ID(pvt), cpvt->call_idx);
 	}
 }
 
@@ -255,6 +262,12 @@ static void activate_call(struct cpvt* cpvt)
 
 	/* drop any other from MASTER, any set pipe for actives */
 	pvt = cpvt->pvt;
+
+	/* SIM7600: delay audio activation until ACTIVE to ensure
+	 * AT+CPCMREG=1 is sent before PCM data flows */
+	if (pvt->has_voice_simcom && cpvt->state != CALL_STATE_ACTIVE)
+		return;
+
 	AST_LIST_TRAVERSE(&pvt->chans, cpvt2, entry)
 	{
 		if(cpvt2 != cpvt)
@@ -282,9 +295,13 @@ static void activate_call(struct cpvt* cpvt)
 	// Previously this was conditional on !CALL_FLAG_ACTIVATED, but
 	// that caused mixb_write to fail silently when the flag was set
 	// but the mixstream was not actually attached.
-	ast_debug (1, "[DONGLE-UL] activate_call: calling mixb_attach for idx %d (already_activated=%d)\n",
+	ast_debug (6, "[DONGLE-UL] activate_call: calling mixb_attach for idx %d (already_activated=%d)\n",
 		cpvt->call_idx, CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED) ? 1 : 0);
 	mixb_attach(&pvt->a_write_mixb, &cpvt->mixstream);
+
+	/* AT+CPCMREG=1 is now sent in change_channel_state() when the call
+	 * becomes ACTIVE, not here during DIALING. The SIM7600 rejects the
+	 * command during DIALING but accepts it when the call is connected. */
 //	rb_init (&cpvt->a_write_rb, cpvt->a_write_buf, sizeof (cpvt->a_write_rb));
 //	cpvt->write = pvt->a_write_rb.write;
 //	cpvt->used = pvt->a_write_rb.used;
@@ -425,7 +442,7 @@ static void iov_write(struct pvt* pvt, int fd, struct iovec * iov, int iovcnt)
 {
 	ssize_t written;
 	ssize_t done = 0;
-	int count = 100;
+	int count = 1000;
 
 	while(iovcnt)
 	{
@@ -436,12 +453,16 @@ again:
 			if((errno == EINTR || errno == EAGAIN))
 			{
 				--count;
+				ast_debug (1, "[%s] writev() retry: errno=%d (%s) remaining=%d fd=%d\n",
+					PVT_ID(pvt), errno, strerror(errno), count, fd);
 				if(count != 0) {
 					/* Add small delay to allow device buffer to drain - SIM7600 needs this */
-					usleep(1000);
+					usleep(10000);
 					goto again;
 				}
-				ast_debug (1, "[%s] Deadlock avoided for write! (retried 100 times, errno=%d)\n", PVT_ID(pvt), errno);
+				ast_debug (1, "[%s] Deadlock avoided for write! (retried 1000 times, errno=%d)\n", PVT_ID(pvt), errno);
+				ast_debug (1, "[%s] writev() failed: errno=%d (%s) iovcnt=%d fd=%d\n",
+					PVT_ID(pvt), errno, strerror(errno), iovcnt, fd);
 			}
 			break;
 		}
@@ -474,6 +495,7 @@ again:
 	}
 }
 
+/* Swap samples on big-endian hosts (SIM7600 expects little-endian) */
 static inline void change_audio_endianness_to_le(
 		attribute_unused struct iovec *iov, attribute_unused int iovcnt)
 {
@@ -616,6 +638,7 @@ static struct ast_frame* channel_read (struct ast_channel* channel)
 	{
 		memset (&cpvt->a_read_frame, 0, sizeof (cpvt->a_read_frame));
 
+		cpvt->a_read_frame.frametype = AST_FRAME_VOICE;
 		cpvt->a_read_frame.subclass.format = ast_format_slin;
 		cpvt->a_read_frame.data.ptr = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
 		cpvt->a_read_frame.offset = AST_FRIENDLY_OFFSET;
@@ -1051,8 +1074,8 @@ EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int 
 				case CALL_STATE_DIALING:
 					/* from ^ORIG:idx,y */
 					activate_call(cpvt);
-					queue_control_channel (cpvt, AST_CONTROL_PROGRESS);
-					ast_setstate (channel, AST_STATE_DIALING);
+					queue_control_channel (cpvt, AST_CONTROL_RINGING);
+					ast_setstate (channel, AST_STATE_RINGING);
 					break;
 
 				case CALL_STATE_ALERTING:
@@ -1062,6 +1085,17 @@ EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int 
 					break;
 
 				case CALL_STATE_ACTIVE:
+					/* For SIM7600, send AT+CPCMREG=1 before activating audio.
+					 * Per the SIM7600 USB AUDIO spec, PCM data must not flow
+					 * until after AT+CPCMREG=1 is acknowledged. */
+					ast_debug(1, "[%s] change_channel_state ACTIVE: has_voice_simcom=%d pcm_enabled=%d oldstate=%d\n",
+						PVT_ID(pvt), pvt->has_voice_simcom,
+						CPVT_TEST_FLAG(cpvt, CALL_FLAG_PCM_ENABLED) ? 1 : 0, oldstate);
+					if (pvt->has_voice_simcom && !CPVT_TEST_FLAG(cpvt, CALL_FLAG_PCM_ENABLED)) {
+						at_enqueue_pcmreg(cpvt, 1);
+						CPVT_SET_FLAGS(cpvt, CALL_FLAG_PCM_ENABLED);
+						ast_debug(1, "[%s] SIM7600: enabling PCM audio with AT+CPCMREG=1\n", PVT_ID(pvt));
+					}
 					activate_call(cpvt);
 					if (oldstate == CALL_STATE_ONHOLD)
 					{
