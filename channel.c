@@ -22,6 +22,8 @@
 #include <asterisk/stasis_channels.h>
 #include <asterisk/format_cache.h>
 
+#include <unistd.h> /* usleep() */
+
 #include "channel.h"
 #include "chan_dongle.h"
 #include "at_command.h"

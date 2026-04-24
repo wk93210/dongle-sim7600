@@ -36,6 +36,7 @@
 
 #include <asterisk/callerid.h>
 #include <asterisk/dsp.h>
+#include <asterisk/logger.h> /* ast_log() */
 #include <asterisk/manager.h>
 #include <asterisk/module.h> /* AST_MODULE_LOAD_DECLINE ... */
 #include <asterisk/stringfields.h> /* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
@@ -46,6 +47,7 @@
 #include <signal.h>   /* SIGURG */
 #include <sys/stat.h> /* S_IRUSR | S_IRGRP | S_IROTH */
 #include <termios.h>  /* struct termios tcgetattr() tcsetattr()  */
+#include <unistd.h>   /* usleep() */
 
 #include "ast_compat.h" /* asterisk compatibility fixes */
 
@@ -603,8 +605,8 @@ static void *do_monitor_phone(void *data) {
             while ((probe_iovcnt = at_read_result_iov(dev, &probe_read_result, &probe_rb, probe_iov)) > 0) {
               size_t total_len = probe_iov[0].iov_len + probe_iov[1].iov_len;
               rb_read_upd(&probe_rb, total_len + 1);
-              if (total_len >= 2) {
-                char *line = alloca(total_len + 1);
+              if (total_len >= 2 && total_len < sizeof(probe_buf)) {
+                char line[256];
                 if (probe_iovcnt == 2) {
                   memcpy(line, probe_iov[0].iov_base, probe_iov[0].iov_len);
                   memcpy(line + probe_iov[0].iov_len, probe_iov[1].iov_base, probe_iov[1].iov_len);
